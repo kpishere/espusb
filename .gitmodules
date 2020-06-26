@@ -2,3 +2,6 @@
 	path = esp82xx
 	url = https://github.com/cnlohr/esp82xx.git
 
+[submodule "map"]
+	path = map
+	url = https://github.com/kpishere/map.git

@@ -16,30 +16,30 @@
 #ifndef _INASM_
 #include <c_types.h>
 
-#define EMPTY_SEND_BUFFER (uint8_t*)1
+#define EMPTY_SEND_BUFFER (unsigned char*)1
 
 struct usb_endpoint
 {
-	const uint8_t * ptr_in;		// Pointer to "IN" data (US->PC)
+	const unsigned char * ptr_in;		// Pointer to "IN" data (US->PC)
 	uint16_t size_in;		// Total size of the structure pointed to by ptr_in
 	uint16_t advance_in;		// How much data was sent this packet? (How much to advance in ack)
 	uint16_t place_in;		// Where in the ptr_in we are currently pointing.
-	uint8_t toggle_in; 		// DATA0 or DATA1?
-	uint8_t send;			// Sets back to 0 when done sending.
+	unsigned char toggle_in; 		// DATA0 or DATA1?
+	unsigned char send;			// Sets back to 0 when done sending.
 	int * transfer_in_done_ptr;
 
-	uint8_t * ptr_out;
+	unsigned char * ptr_out;
 	int * transfer_done_ptr;  //Written to # of bytes received when a datagram is done.
 	uint16_t max_size_out;
 	uint16_t got_size_out;
-	uint8_t toggle_out;  //Out PC->US
+	unsigned char toggle_out;  //Out PC->US
 };
 
 struct usb_internal_state_struct
 {
 	//This data is modified by the super low-level code.
 
-	uint8_t usb_buffer[USB_BUFFERSIZE];
+	unsigned char usb_buffer[USB_BUFFERSIZE];
 
 	uint32_t packet_size; //Of data currently in usb_buffer
 	uint32_t last_token;
@@ -69,7 +69,7 @@ extern void gpio_intr();
 //poly_function = 0 to include CRC.
 //poly_function = 2 to exclude CRC.
 //This function is provided in assembly
-extern void usb_send_data( uint8_t * data, uint32_t length, uint32_t poly_function );
+extern void usb_send_data( unsigned char * data, uint32_t length, uint32_t poly_function );
 
 void usb_pid_handle_setup( uint32_t this_token, struct usb_internal_state_struct * ist );
 void usb_pid_handle_sof( uint32_t this_token, struct usb_internal_state_struct * ist );
@@ -129,9 +129,9 @@ extern uint32_t usb_reinstate;
 
 struct usb_urb
 {
-	uint8_t pktp;
-	uint8_t bmRequestType;
-	uint8_t bRequest;
+	unsigned char pktp;
+	unsigned char bmRequestType;
+	unsigned char bRequest;
 	uint16_t wValue;
 	uint16_t wIndex;
 	uint16_t wLength;

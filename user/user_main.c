@@ -14,13 +14,30 @@
 #include <common.h>
 #include <usb.h>
 
+#include "keyboard_terminal_122.h"
+
+//#define PROFILE
+
 #define PORT 7777
 
 #define procTaskPrio        0
-#define procTaskQueueLen    1
+#define procTaskQueueLen    4
 
 static volatile os_timer_t some_timer;
 
+enum local_event_t {
+		LOCAL_EVENT_DEFAULT,
+    LOCAL_EVENT_PS2_KEYEVENT,
+		LOCAL_EVENT_PS2_KEYUP
+};
+
+const int numbits = 11; // Bits in each PS2 Keyboard event
+const int clockPin = 2; // D4 on NodeMcu, PS2 keyboard pins w/ level shift from 5V to 3.3V
+const int dataPin = 0; // D3 on NodeMcu, PS2 keyboard pins w/ level shift from 5V to 3.3V
+#define PERIPHSPS2CLK	PERIPHS_IO_MUX_GPIO2_U
+#define PERIPHSPS2DAT	PERIPHS_IO_MUX_GPIO0_U
+#define FUNCPS2CLK FUNC_GPIO2
+#define FUNCPS2DAT FUNC_GPIO0
 
 //int ICACHE_FLASH_ATTR StartMDNS();
 
@@ -35,15 +52,13 @@ char * strcat( char * dest, char * src )
 }
 
 //Tasks that happen all the time.
-
 os_event_t    procTaskQueue[procTaskQueueLen];
 
 
 //Awkward example with use of control messages to get data to/from device.
-uint8_t user_control[144]; //Enough for FW######## ### [128 bytes of data] [null]
+unsigned char user_control[144]; //Enough for FW######## ### [128 bytes of data] [null]
 int     user_control_length_acc; //From host to us.
 int     user_control_length_ret; //From us to host.
-
 
 void usb_handle_custom_control( int bmRequestType, int bRequest, int wLength, struct usb_internal_state_struct * ist )
 {
@@ -78,16 +93,44 @@ void usb_handle_custom_control( int bmRequestType, int bRequest, int wLength, st
 
 }
 
-uint8_t my_ep1[4];
-uint8_t my_ep2[8];
+unsigned char my_ep1[4];
+unsigned char my_ep2[8];
 extern uint32_t usb_ramtable[31];
 
 extern int keybt;
 extern int keymod;
 extern int keypress;
 
+void sendUSBKey(usbKey key) {
+  keymod = key.mod;
+  keybt = (int)key.key;
+  keypress = 1;
+  system_os_post(procTaskPrio, LOCAL_EVENT_DEFAULT, 0 );
+}
 
-static void ICACHE_FLASH_ATTR procTask(os_event_t *events)
+static void ICACHE_FLASH_ATTR procTaskPS2KeyEvent(uint32_t val)
+{
+	unsigned char valc = (unsigned char)val;
+
+  if(nextKeyIsOut) {
+    outKeyState(valc);
+  } else {
+		keyHandler keyFound = keyHandler_map_find(valc);
+		if(keyFound != NULL) {
+			keyFound( ((ps2key){valc, ps2kbState}) );
+			system_os_post(procTaskPrio, LOCAL_EVENT_PS2_KEYUP, 0 );
+  	}
+	}
+}
+
+static void ICACHE_FLASH_ATTR procTaskPS2KeyUp()
+{
+	  keybt = Reserved0;
+	  keypress = 1;
+		system_os_post(procTaskPrio, LOCAL_EVENT_DEFAULT, 0 );
+}
+
+static void ICACHE_FLASH_ATTR procTaskDefault()
 {
 	struct usb_internal_state_struct * uis = &usb_internal_state;
 	struct usb_endpoint * e2 = &uis->eps[2];
@@ -114,62 +157,38 @@ static void ICACHE_FLASH_ATTR procTask(os_event_t *events)
 		if( r >= 0 )
 			user_control_length_ret = r;
 	}
+	system_os_post(procTaskPrio, LOCAL_EVENT_DEFAULT, 0 );
+}
 
-	system_os_post(procTaskPrio, 0, 0 );
+static void ICACHE_FLASH_ATTR procTaskSwitch(os_event_t *events)
+{
+	enum local_event_t event = (enum local_event_t)events->sig;
+	uint32_t param = (uint32_t)events->par;
+
+	switch(event) {
+	case LOCAL_EVENT_DEFAULT: 			procTaskDefault();	return;
+	case LOCAL_EVENT_PS2_KEYEVENT: 	procTaskPS2KeyEvent(param); return;
+	case LOCAL_EVENT_PS2_KEYUP: 		procTaskPS2KeyUp(); return;
+	}
 }
 
 
 //Timer event.
 static void ICACHE_FLASH_ATTR myTimer(void *arg)
 {
-#if 0
-	struct usb_internal_state_struct * uis = &usb_internal_state;
-	struct usb_endpoint * e1 = &uis->eps[1];
-	struct usb_endpoint * e2 = &uis->eps[2];
-
-	int i;
-
-	//Send mouse and keyboard commands
-	//my_ep1[0] ^= _BV(1);  // _BV(x)  ((1<<(x))
-//	my_ep1[1] = 1; //X offset
-//	my_ep1[2] = 1; //Y offset
-	//[0] == Button Bitmask ( _BV(0) == the Left button )
-	//[1] == The X offset
-	//[2] == The Y offset
-	//[3] == ?
-
-
-//	my_ep2[2] ^= 8;  //Keyboard
-
-	printf( "%d\n", e1->send );
-	
-	e1->ptr_in = my_ep1;
-	e1->place_in = 0;
-	e1->size_in = sizeof( my_ep1 );
-	e1->send = 1;
-
-	e2->ptr_in = my_ep2;
-	e2->place_in = 0;
-	e2->size_in = sizeof( my_ep2 );
-	e2->send = 1;
-#endif
-
 	CSTick( 1 );
 }
 
 
-void ICACHE_FLASH_ATTR charrx( uint8_t c )
+void ICACHE_FLASH_ATTR charrx( unsigned char c )
 {
 	//Called from UART.
 }
 
-
 volatile uint32_t my_table[] = { 0, (uint32_t)&PIN_IN, (uint32_t)&PIN_OUT_SET, (uint32_t)&PIN_OUT_CLEAR, 0xffff0000, 0x0000ffff };
 
-
-
 #ifdef PROFILE
-int time_ccount(void) 
+int time_ccount(void)
 {
         unsigned r;
 
@@ -200,6 +219,63 @@ void user_rf_cal_sector_set()
 {
 }
 
+// Interrupt handler for key events
+void clkRising() {
+  static unsigned char bitcount = 0;
+  static unsigned char incoming = 0;
+  // if not an interrupt for us, forward to original interrupt keyHandler
+  uint32_t gpio_status = GPIO_REG_READ(GPIO_STATUS_ADDRESS);
+  if( gpio_status & (BIT(clockPin)) ) { // we are handling this one
+    // Clear only the bit we are interested in
+    GPIO_REG_WRITE(GPIO_STATUS_W1TC_ADDRESS, (gpio_status & (BIT(clockPin)) ) );
+    unsigned char n, val;
+
+    val = GPIO_INPUT_GET(dataPin);
+
+    n = bitcount - 1;
+    if (n <= 7) {
+      incoming |= (val << n);
+    }
+    bitcount++;
+
+    // TODO: check parity
+    // TODO: check stop-bit
+
+    // The scan code size
+    if (bitcount == 11) {
+      bitcount = 0;
+      // If any other interrupt flag is set, forward interrupt
+      if( gpio_status & ~(BIT(clockPin)) ) {
+        gpio_intr();
+      }
+      system_os_post(procTaskPrio, LOCAL_EVENT_PS2_KEYEVENT, (uint32_t)incoming );
+    }
+  } else {
+    gpio_intr();
+  }
+}
+
+void ICACHE_FLASH_ATTR gpio_initPS2(void)
+{
+  unsigned char buff[] = "_";
+	PIN_FUNC_SELECT(PERIPHSPS2CLK,FUNCPS2CLK);
+  PIN_FUNC_SELECT(PERIPHSPS2DAT,FUNCPS2DAT);
+  PIN_DIR_INPUT = _BV(clockPin) | _BV(dataPin); // disable output
+	PIN_PULLUP_EN( PERIPHSPS2CLK );
+	PIN_PULLUP_EN( PERIPHSPS2DAT );
+	GPIO_DIS_OUTPUT(GPIO_ID_PIN(clockPin)); //Configure it in input mode.
+	GPIO_DIS_OUTPUT(GPIO_ID_PIN(dataPin)); //Configure it in input mode.
+
+  // NOTE: we are overwriting the interrupt set in usb.c for gpio_intr()
+  // and must filter and forward interrupt events accordingly
+	ETS_GPIO_INTR_DISABLE();                                           //Close the GPIO interrupt
+	ETS_GPIO_INTR_ATTACH(clkRising,NULL);                         //Register the interrupt function
+	gpio_pin_intr_state_set(GPIO_ID_PIN(clockPin),GPIO_PIN_INTR_POSEDGE);    //Rising edge trigger
+	ETS_GPIO_INTR_ENABLE() ;                                           //Enable the GPIO interrupt
+
+	ps2kbState = (int)ps2none;
+}
+
 void ICACHE_FLASH_ATTR user_init(void)
 {
 	uart_init(BIT_RATE_115200, BIT_RATE_115200);
@@ -207,10 +283,9 @@ void ICACHE_FLASH_ATTR user_init(void)
 	uart0_sendStr("\r\n\033c" ); //Clear screen
 	uart0_sendStr("esp8266 test usb driver\r\n");
 	system_update_cpu_freq( 80 );
-//#define PROFILE
 #ifdef PROFILE
 	uint32_t k = 0x89abcdef;
-	uint8_t * g  = (uint8_t*)&k;
+	unsigned char * g  = (unsigned char*)&k;
  system_update_cpu_freq(160);
 	my_table[0] = 5;
 	printf( "%02x %02x %02x %02x\n", g[0], g[1], g[2], g[3] );
@@ -221,7 +296,6 @@ void ICACHE_FLASH_ATTR user_init(void)
 #endif
 
 	//Print reboot cause
-	
 	struct rst_info * r = system_get_rst_info();
 	printf( "Reason: %p\n", r->reason );
 	printf( "Exec  : %p\n", r->exccause );
@@ -231,8 +305,6 @@ void ICACHE_FLASH_ATTR user_init(void)
 	printf( "excvaddr:%p\n", r->excvaddr );
 	printf( "depc: %p\n", r->depc );
 
-
-
 //Uncomment this to force a system restore.
 //	system_restore();
 
@@ -240,7 +312,6 @@ void ICACHE_FLASH_ATTR user_init(void)
 	CSPreInit();
 
 	//Create additional socket, etc. here.
-
 	CSInit();
 
 	//Set GPIO16 for INput
@@ -260,7 +331,7 @@ void ICACHE_FLASH_ATTR user_init(void)
 	AddMDNSService( "_esp82xx._udp", "ESP8266 Backend", 7878 );
 
 	//Add a process
-	system_os_task(procTask, procTaskPrio, procTaskQueue, procTaskQueueLen);
+	system_os_task(procTaskSwitch, procTaskPrio, procTaskQueue, procTaskQueueLen);
 
 	//Timer example
 	os_timer_disarm(&some_timer);
@@ -270,13 +341,15 @@ void ICACHE_FLASH_ATTR user_init(void)
 	printf( "Boot Ok.\n" );
 
 	usb_init();
- 
+
+	// Configure pins for PS2 keyboard_terminal_122
+	gpio_initPS2();
+
 	wifi_set_sleep_type(LIGHT_SLEEP_T);
 	wifi_fpm_set_sleep_type(LIGHT_SLEEP_T);
 
-	system_os_post(procTaskPrio, 0, 0 );
+	system_os_post(procTaskPrio, LOCAL_EVENT_DEFAULT, 0 );
 }
-
 
 //There is no code in this project that will cause reboots if interrupts are disabled.
 void EnterCritical()
@@ -286,5 +359,3 @@ void EnterCritical()
 void ExitCritical()
 {
 }
-
-

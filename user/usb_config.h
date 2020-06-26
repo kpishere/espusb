@@ -24,7 +24,7 @@
 
 #ifdef INSTANCE_DESCRIPTORS
 //Taken from http://www.usbmadesimple.co.uk/ums_ms_desc_dev.htm
-static const uint8_t device_descriptor[] = {
+static const unsigned char device_descriptor[] = {
 	18, //Length
 	1,  //Type (Device)
 	0x10, 0x01, //Spec
@@ -41,7 +41,7 @@ static const uint8_t device_descriptor[] = {
 	1, //Max number of configurations
 };
 
-static const uint8_t config_descriptor[] = {  //Mostly stolen from a USB mouse I found.
+static const unsigned char config_descriptor[] = {  //Mostly stolen from a USB mouse I found.
 	// configuration descriptor, USB spec 9.6.3, page 264-266, Table 9-10
 	9, 					// bLength;
 	2,					// bDescriptorType;
@@ -113,7 +113,7 @@ static const uint8_t config_descriptor[] = {  //Mostly stolen from a USB mouse I
 
 
 
-static const uint8_t mouse_hid_desc[52] = {  //From http://eleccelerator.com/tutorial-about-usb-hid-report-descriptors/
+static const unsigned char mouse_hid_desc[52] = {  //From http://eleccelerator.com/tutorial-about-usb-hid-report-descriptors/
 	0x05, 0x01,                    // USAGE_PAGE (Generic Desktop)
 	0x09, 0x02,                    // USAGE (Mouse)
 	0xa1, 0x01,                    // COLLECTION (Application)
@@ -144,7 +144,7 @@ static const uint8_t mouse_hid_desc[52] = {  //From http://eleccelerator.com/tut
 };
 
 //From http://codeandlife.com/2012/06/18/usb-hid-keyboard-with-v-usb/
-static const uint8_t keyboard_hid_desc[63] = {   /* USB report descriptor */
+static const unsigned char keyboard_hid_desc[63] = {   /* USB report descriptor */
     0x05, 0x01,                    // USAGE_PAGE (Generic Desktop)
     0x09, 0x06,                    // USAGE (Keyboard)
     0xa1, 0x01,                    // COLLECTION (Application)
@@ -187,8 +187,8 @@ static const uint8_t keyboard_hid_desc[63] = {   /* USB report descriptor */
 #define STR_SERIAL       L"000"
 
 struct usb_string_descriptor_struct {
-	uint8_t bLength;
-	uint8_t bDescriptorType;
+	unsigned char bLength;
+	unsigned char bDescriptorType;
 	uint16_t wString[];
 };
 const static struct usb_string_descriptor_struct string0 = {
@@ -218,17 +218,17 @@ const static struct usb_string_descriptor_struct string3 = {
 const static struct descriptor_list_struct {
 	uint16_t	wValue;
 	uint16_t	wIndex;
-	const uint8_t	*addr;
-	uint8_t		length;
+	const unsigned char	*addr;
+	unsigned char		length;
 } descriptor_list[] = {
 	{0x0100, 0x0000, device_descriptor, sizeof(device_descriptor)},
 	{0x0200, 0x0000, config_descriptor, sizeof(config_descriptor)},
 	{0x2200, 0x0000, mouse_hid_desc, sizeof(mouse_hid_desc)},
 	{0x2200, 0x0001, keyboard_hid_desc, sizeof(keyboard_hid_desc)},
-	{0x0300, 0x0000, (const uint8_t *)&string0, 4},
-	{0x0301, 0x0409, (const uint8_t *)&string1, sizeof(STR_MANUFACTURER)},
-	{0x0302, 0x0409, (const uint8_t *)&string2, sizeof(STR_PRODUCT)},	
-	{0x0303, 0x0409, (const uint8_t *)&string3, sizeof(STR_SERIAL)}
+	{0x0300, 0x0000, (const unsigned char *)&string0, 4},
+	{0x0301, 0x0409, (const unsigned char *)&string1, sizeof(STR_MANUFACTURER)},
+	{0x0302, 0x0409, (const unsigned char *)&string2, sizeof(STR_PRODUCT)},	
+	{0x0303, 0x0409, (const unsigned char *)&string3, sizeof(STR_SERIAL)}
 };
 #define DESCRIPTOR_LIST_ENTRIES ((sizeof(descriptor_list))/(sizeof(struct descriptor_list_struct)) )
 

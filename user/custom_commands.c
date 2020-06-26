@@ -4,10 +4,10 @@
 #include <esp82xxutil.h>
 #include <usb.h>
 
-extern uint8_t last_leds[512*3];
+extern unsigned char last_leds[512*3];
 extern int last_led_count;
-uint8_t my_ep1[4];
-uint8_t my_ep2[8];
+unsigned char my_ep1[4];
+unsigned char my_ep2[8];
 
 int keybt;
 int keymod;

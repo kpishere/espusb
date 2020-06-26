@@ -1,0 +1,9 @@
+./user_main.c:	e2->ptr_in = my_ep2;
+./user_main.c:	e2->place_in = 0;
+./user_main.c:	e2->size_in = sizeof( my_ep2 );
+./user_main.c:	if( keypress && e2->send == 0 )
+./user_main.c:		e2->send = 1;
+./user_main.c:	e2->ptr_in = my_ep2;
+./user_main.c:	e2->place_in = 0;
+./user_main.c:	e2->size_in = sizeof( my_ep2 );
+./user_main.c:	e2->send = 1;

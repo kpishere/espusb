@@ -17,8 +17,8 @@ struct usb_internal_state_struct usb_internal_state __attribute__((aligned(4)));
 //Received a setup for a specific endpoint.
 void usb_pid_handle_setup( uint32_t this_token, struct usb_internal_state_struct * ist )
 {
-	uint8_t addr = (this_token>>8) & 0x7f;
-	uint8_t endp = (this_token>>15) & 0xf;
+	unsigned char addr = (this_token>>8) & 0x7f;
+	unsigned char endp = (this_token>>15) & 0xf;
 
 	ist->there_is_a_host = 1;
 
@@ -41,8 +41,8 @@ void usb_pid_handle_sof( uint32_t this_token, struct usb_internal_state_struct *
 
 void usb_pid_handle_in( uint32_t this_token, struct usb_internal_state_struct * ist )
 {
-	uint8_t addr = (this_token>>8) & 0x7f;
-	uint8_t endp = (this_token>>15) & 0xf;
+	unsigned char addr = (this_token>>8) & 0x7f;
+	unsigned char endp = (this_token>>15) & 0xf;
 
 	//If we get an "in" token, we have to strike any accept buffers.
 
@@ -55,7 +55,7 @@ void usb_pid_handle_in( uint32_t this_token, struct usb_internal_state_struct * 
 
 
 	int tosend = 0;
-	uint8_t sendnow[12];
+	unsigned char sendnow[12];
 	sendnow[0] = 0x80;
 
 	if( e->send && e->ptr_in ) 
@@ -106,8 +106,8 @@ void usb_pid_handle_out( uint32_t this_token, struct usb_internal_state_struct *
 {
 	//We need to handle this here because we could have an interrupt in the middle of a control or bulk transfer.
 	//This will correctly swap back the endpoint.
-	uint8_t addr = (this_token>>8) & 0x7f;
-	uint8_t endp = (this_token>>15) & 0xf;
+	unsigned char addr = (this_token>>8) & 0x7f;
+	unsigned char endp = (this_token>>15) & 0xf;
 	if( endp >= ENDPOINTS ) return;
 	if( addr != 0 && addr != ist->my_address ) return;
 	struct usb_endpoint * e = ist->ce = &ist->eps[endp];
@@ -203,7 +203,7 @@ void usb_pid_handle_data( uint32_t this_token, struct usb_internal_state_struct 
 just_ack:
 	{
 		//Got the right data.  Acknowledge.
-		uint8_t sendword[2] = { 0x80, 0xD2 };
+		unsigned char sendword[2] = { 0x80, 0xD2 };
 		usb_send_data( sendword, 2, 2 );
 	}
 }
