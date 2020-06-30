@@ -21,14 +21,13 @@
 #define PORT 7777
 
 #define procTaskPrio        0
-#define procTaskQueueLen    4
+#define procTaskQueueLen    1
 
 static volatile os_timer_t some_timer;
 
 enum local_event_t {
 		LOCAL_EVENT_DEFAULT,
-    LOCAL_EVENT_PS2_KEYEVENT,
-		LOCAL_EVENT_PS2_KEYUP
+    LOCAL_EVENT_PS2_KEYEVENT
 };
 
 const int numbits = 11; // Bits in each PS2 Keyboard event
@@ -101,36 +100,7 @@ extern int keybt;
 extern int keymod;
 extern int keypress;
 
-void sendUSBKey(usbKey key) {
-  keymod = key.mod;
-  keybt = (int)key.key;
-  keypress = 1;
-  system_os_post(procTaskPrio, LOCAL_EVENT_DEFAULT, 0 );
-}
-
-static void ICACHE_FLASH_ATTR procTaskPS2KeyEvent(uint32_t val)
-{
-	unsigned char valc = (unsigned char)val;
-
-  if(nextKeyIsOut) {
-    outKeyState(valc);
-  } else {
-		keyHandler keyFound = keyHandler_map_find(valc);
-		if(keyFound != NULL) {
-			keyFound( ((ps2key){valc, ps2kbState}) );
-			system_os_post(procTaskPrio, LOCAL_EVENT_PS2_KEYUP, 0 );
-  	}
-	}
-}
-
-static void ICACHE_FLASH_ATTR procTaskPS2KeyUp()
-{
-	  keybt = Reserved0;
-	  keypress = 1;
-		system_os_post(procTaskPrio, LOCAL_EVENT_DEFAULT, 0 );
-}
-
-static void ICACHE_FLASH_ATTR procTaskDefault()
+void ICACHE_FLASH_ATTR procTaskDefaultSingle()
 {
 	struct usb_internal_state_struct * uis = &usb_internal_state;
 	struct usb_endpoint * e2 = &uis->eps[2];
@@ -157,7 +127,49 @@ static void ICACHE_FLASH_ATTR procTaskDefault()
 		if( r >= 0 )
 			user_control_length_ret = r;
 	}
+}
+
+static void ICACHE_FLASH_ATTR procTaskDefault()
+{
+		procTaskDefaultSingle();
+		system_os_post(procTaskPrio, LOCAL_EVENT_DEFAULT, 0 );
+}
+
+static void ICACHE_FLASH_ATTR procTaskPS2KeyUp()
+{
+ 		printf(" sup ");
+
+		keymod = usbModFromPS2State(ps2kbState);
+	  keybt = Reserved0;
+	  keypress = 1;
+		procTaskDefaultSingle();
+}
+
+static void ICACHE_FLASH_ATTR procTaskPS2KeyEvent(uint32_t val)
+{
+	unsigned char valc = (unsigned char)val;
+
+	printf("\nkey %x ", val);
+
+  if(nextKeyIsOut) {
+    outKeyState(valc);
+  } else {
+		keyHandler keyFound = keyHandler_map_find(valc);
+		if(keyFound != NULL) {
+			keyFound( ((ps2key){valc, ps2kbState}) );
+			procTaskPS2KeyUp();
+  	}
+	}
 	system_os_post(procTaskPrio, LOCAL_EVENT_DEFAULT, 0 );
+}
+
+void sendUSBKey(usbKey key) {
+	printf(" s%x ", key.key);
+
+  keymod = key.mod;
+  keybt = (int)key.key;
+  keypress = 1;
+	procTaskDefaultSingle();
 }
 
 static void ICACHE_FLASH_ATTR procTaskSwitch(os_event_t *events)
@@ -168,7 +180,6 @@ static void ICACHE_FLASH_ATTR procTaskSwitch(os_event_t *events)
 	switch(event) {
 	case LOCAL_EVENT_DEFAULT: 			procTaskDefault();	return;
 	case LOCAL_EVENT_PS2_KEYEVENT: 	procTaskPS2KeyEvent(param); return;
-	case LOCAL_EVENT_PS2_KEYUP: 		procTaskPS2KeyUp(); return;
 	}
 }
 
@@ -244,11 +255,11 @@ void clkRising() {
     // The scan code size
     if (bitcount == 11) {
       bitcount = 0;
-      // If any other interrupt flag is set, forward interrupt
+      system_os_post(procTaskPrio, LOCAL_EVENT_PS2_KEYEVENT, (uint32_t)incoming );
+			// If any other interrupt flag is set, forward interrupt
       if( gpio_status & ~(BIT(clockPin)) ) {
         gpio_intr();
       }
-      system_os_post(procTaskPrio, LOCAL_EVENT_PS2_KEYEVENT, (uint32_t)incoming );
     }
   } else {
     gpio_intr();
