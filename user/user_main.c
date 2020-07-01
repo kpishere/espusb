@@ -198,69 +198,57 @@ void ICACHE_FLASH_ATTR charrx( unsigned char c )
 
 volatile uint32_t my_table[] = { 0, (uint32_t)&PIN_IN, (uint32_t)&PIN_OUT_SET, (uint32_t)&PIN_OUT_CLEAR, 0xffff0000, 0x0000ffff };
 
-#ifdef PROFILE
-int time_ccount(void)
+static inline time_ccount(void)
 {
-        unsigned r;
-
-/*	volatile unsigned a = 0xabcdef01;
-        asm volatile ("testp:");
-	a &= ~(1<<10);
-*/
-
-        asm volatile ("\
-	\n\
-\
-intrs: \
-	call0 my_func\n\
-	j end\n\
-\n\
-end:\n\
-\
-	\n\
-	sub %[out], a11, a9\n\
-	" : [out] "=r"(r) : : "a9", "a10", "a11" );
-
-        return r; //rsr a9, ccount //rsr a11, ccount
-//	addi %[out], %[out], -1\n\
+		int32_t r;
+		asm volatile("rsr %0, ccount" : "=r"(r));
+		return r;
 }
-#endif
 
 void user_rf_cal_sector_set()
 {
 }
 
 // Interrupt handler for key events
+static unsigned char bitcount = 0;
+static unsigned char incoming = 0;
+static uint32_t startBitCount = 0, currentBitCount = 0;
 void clkRising() {
-  static unsigned char bitcount = 0;
-  static unsigned char incoming = 0;
+	#define MAX_PS2MSG_TIME_MICROSEC (900e-6/12.5e-9) /* 12.5 ns per click tick at 80Mhz */
+
   // if not an interrupt for us, forward to original interrupt keyHandler
   uint32_t gpio_status = GPIO_REG_READ(GPIO_STATUS_ADDRESS);
   if( gpio_status & (BIT(clockPin)) ) { // we are handling this one
     // Clear only the bit we are interested in
     GPIO_REG_WRITE(GPIO_STATUS_W1TC_ADDRESS, (gpio_status & (BIT(clockPin)) ) );
-    unsigned char n, val;
+    unsigned char val, n;
 
     val = GPIO_INPUT_GET(dataPin);
-
-    n = bitcount - 1;
-    if (n <= 7) {
-      incoming |= (val << n);
-    }
-    bitcount++;
-
-    // TODO: check parity
-    // TODO: check stop-bit
-
-    // The scan code size
-    if (bitcount == 11) {
-      bitcount = 0;
+		currentBitCount = time_ccount();
+		n = bitcount - 1;
+		if( val == 0x00 && bitcount == 0 ) { // Start bit
+			printf("\nst ");
+			startBitCount = time_ccount();
+			bitcount++;
+		} else if( n <= 7 ) {
+			incoming |= (val << n );
+			bitcount++;
+		} else if( n == 8 ) { // Parity bit
+			bitcount++;
+		} else if( n >= 9 /* Stop bit */
+			||(currentBitCount > startBitCount /* Msg Timeout */
+					&& (currentBitCount - startBitCount) > MAX_PS2MSG_TIME_MICROSEC
+				)
+		) {
+			printf("*%02X %d \n", (unsigned char)incoming, bitcount);
       system_os_post(procTaskPrio, LOCAL_EVENT_PS2_KEYEVENT, (uint32_t)incoming );
-			// If any other interrupt flag is set, forward interrupt
-      if( gpio_status & ~(BIT(clockPin)) ) {
-        gpio_intr();
-      }
-    }
+			bitcount = 0x00;
+			incoming = 0x00;
+		}
+		// If any other interrupt flag is set, forward interrupt
+		if( gpio_status & ~(BIT(clockPin)) ) {
+			gpio_intr();
+		}
   } else {
     gpio_intr();
   }
