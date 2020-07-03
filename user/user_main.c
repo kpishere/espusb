@@ -33,6 +33,7 @@ enum local_event_t {
 const int numbits = 11; // Bits in each PS2 Keyboard event
 const int clockPin = 2; // D4 on NodeMcu, PS2 keyboard pins w/ level shift from 5V to 3.3V
 const int dataPin = 0; // D3 on NodeMcu, PS2 keyboard pins w/ level shift from 5V to 3.3V
+const int debugPin = 14; // D5 on NodeMcu
 #define PERIPHSPS2CLK	PERIPHS_IO_MUX_GPIO2_U
 #define PERIPHSPS2DAT	PERIPHS_IO_MUX_GPIO0_U
 #define FUNCPS2CLK FUNC_GPIO2
@@ -219,6 +220,9 @@ void clkRising() {
   // if not an interrupt for us, forward to original interrupt keyHandler
   uint32_t gpio_status = GPIO_REG_READ(GPIO_STATUS_ADDRESS);
   if( gpio_status & (BIT(clockPin)) ) { // we are handling this one
+		ETS_GPIO_INTR_DISABLE();                                           //Close the GPIO interrupt
+		GPIO_OUTPUT_SET(debugPin, 1);
+		os_timer_disarm(&some_timer);
     // Clear only the bit we are interested in
     GPIO_REG_WRITE(GPIO_STATUS_W1TC_ADDRESS, (gpio_status & (BIT(clockPin)) ) );
     unsigned char val, n;
@@ -227,7 +231,7 @@ void clkRising() {
 		currentBitCount = time_ccount();
 		n = bitcount - 1;
 		if( val == 0x00 && bitcount == 0 ) { // Start bit
-			printf("\nst ");
+			//printf("\nst ");
 			startBitCount = time_ccount();
 			bitcount++;
 		} else if( n <= 7 ) {
@@ -240,17 +244,22 @@ void clkRising() {
 					&& (currentBitCount - startBitCount) > MAX_PS2MSG_TIME_MICROSEC
 				)
 		) {
-			printf("*%02X %d \n", (unsigned char)incoming, bitcount);
+			//printf("*%02X %d \n", (unsigned char)incoming, bitcount);
       system_os_post(procTaskPrio, LOCAL_EVENT_PS2_KEYEVENT, (uint32_t)incoming );
 			bitcount = 0x00;
 			incoming = 0x00;
 		}
 		// If any other interrupt flag is set, forward interrupt
-		if( gpio_status & ~(BIT(clockPin)) ) {
+//		if( gpio_status & ~(BIT(clockPin)) ) {
+//			gpio_intr();
+//		}
+		os_timer_arm(&some_timer, SLOWTICK_MS, 1);
+		GPIO_OUTPUT_SET(debugPin, 0);
+		ETS_GPIO_INTR_ENABLE();
+  } else {
+    if(bitcount == 0) {
 			gpio_intr();
 		}
-  } else {
-    gpio_intr();
   }
 }
 
@@ -264,6 +273,10 @@ void ICACHE_FLASH_ATTR gpio_initPS2(void)
 	PIN_PULLUP_EN( PERIPHSPS2DAT );
 	GPIO_DIS_OUTPUT(GPIO_ID_PIN(clockPin)); //Configure it in input mode.
 	GPIO_DIS_OUTPUT(GPIO_ID_PIN(dataPin)); //Configure it in input mode.
+
+	// For debugging
+	PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTMS_U, FUNC_GPIO14);
+	GPIO_OUTPUT_SET(debugPin, 0);
 
   // NOTE: we are overwriting the interrupt set in usb.c for gpio_intr()
   // and must filter and forward interrupt events accordingly

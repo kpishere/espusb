@@ -32,24 +32,24 @@ If you already have an environment with the toolchain, then here is what you wan
 
 ### Software
 
-- Install libusb and recursively clone this repo: 
-  
+- Install libusb and recursively clone this repo:
+
   ``` bash
   sudo apt-get install libusb-1.0-0-dev
   git clone --recursive https://github.com/cnlohr/espusb
   cd espusb
   ```
 
-- `user.cfg` contains some settings that you might have to change to get it working. 
+- `user.cfg` contains some settings that you might have to change to get it working.
 
 - Building/flashing the main binary
-  
+
   ``` bash
   make ESP_ROOT=~/esp8266/esp-open-sdk/ burn
   ```
 
 - Building/flashing the web interface (for the example mentioned above)
-  
+
   ``` bash
   make ESP_ROOT=~/esp8266/esp-open-sdk/ burnweb
   ```
@@ -117,4 +117,7 @@ From/To (in ASM):
 401011ef t usb_asm_end
 Total length of ASM: 2cf
 ```
+## PS2 Keyboard
+This is a cool project and great intro into the world of USB.  I was attempting to use the NodeMCUs I had around as PS/2 to USB adapters but alas, as the USB code on it's own, works great, the PS/2 addition makes it not work so great as both protocols have timing critical functions to perform and the interfere.  As it is, you type too fast and you miss keys.  So, I'll just have to wait for my ATTiny boards to show up.  Still though, something totally accessible to get your feet wet for those USB nubes.
 
+ Also, for those Model M Terminal 122 key 'battleship' fans out there, the key mapping takes long time to do and that is here too.  Still though, it needs some trial use time on it and that has yet to come.
