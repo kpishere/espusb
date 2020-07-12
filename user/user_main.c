@@ -23,7 +23,7 @@
 #define procTaskPrio        0
 #define procTaskQueueLen    1
 
-static volatile os_timer_t some_timer;
+//static volatile os_timer_t some_timer;
 
 enum local_event_t {
 		LOCAL_EVENT_DEFAULT,
@@ -138,7 +138,7 @@ static void ICACHE_FLASH_ATTR procTaskDefault()
 
 static void ICACHE_FLASH_ATTR procTaskPS2KeyUp()
 {
- 		printf(" sup ");
+// 		printf(" sup ");
 
 		keymod = usbModFromPS2State(ps2kbState);
 	  keybt = Reserved0;
@@ -150,7 +150,7 @@ static void ICACHE_FLASH_ATTR procTaskPS2KeyEvent(uint32_t val)
 {
 	unsigned char valc = (unsigned char)val;
 
-	printf("\nkey %x ", val);
+//	printf("\nkey %x ", val);
 
   if(nextKeyIsOut) {
     outKeyState(valc);
@@ -165,7 +165,7 @@ static void ICACHE_FLASH_ATTR procTaskPS2KeyEvent(uint32_t val)
 }
 
 void sendUSBKey(usbKey key) {
-	printf(" s%x ", key.key);
+//	printf(" s%x ", key.key);
 
   keymod = key.mod;
   keybt = (int)key.key;
@@ -222,7 +222,7 @@ void clkRising() {
   if( gpio_status & (BIT(clockPin)) ) { // we are handling this one
 		ETS_GPIO_INTR_DISABLE();                                           //Close the GPIO interrupt
 		GPIO_OUTPUT_SET(debugPin, 1);
-		os_timer_disarm(&some_timer);
+//		os_timer_disarm(&some_timer);
     // Clear only the bit we are interested in
     GPIO_REG_WRITE(GPIO_STATUS_W1TC_ADDRESS, (gpio_status & (BIT(clockPin)) ) );
     unsigned char val, n;
@@ -249,11 +249,7 @@ void clkRising() {
 			bitcount = 0x00;
 			incoming = 0x00;
 		}
-		// If any other interrupt flag is set, forward interrupt
-//		if( gpio_status & ~(BIT(clockPin)) ) {
-//			gpio_intr();
-//		}
-		os_timer_arm(&some_timer, SLOWTICK_MS, 1);
+//		os_timer_arm(&some_timer, SLOWTICK_MS, 1);
 		GPIO_OUTPUT_SET(debugPin, 0);
 		ETS_GPIO_INTR_ENABLE();
   } else {
@@ -346,9 +342,9 @@ void ICACHE_FLASH_ATTR user_init(void)
 	system_os_task(procTaskSwitch, procTaskPrio, procTaskQueue, procTaskQueueLen);
 
 	//Timer example
-	os_timer_disarm(&some_timer);
-	os_timer_setfn(&some_timer, (os_timer_func_t *)myTimer, NULL);
-	os_timer_arm(&some_timer, SLOWTICK_MS, 1);
+//	os_timer_disarm(&some_timer);
+//	os_timer_setfn(&some_timer, (os_timer_func_t *)myTimer, NULL);
+//	os_timer_arm(&some_timer, SLOWTICK_MS, 1);
 
 	printf( "Boot Ok.\n" );
 

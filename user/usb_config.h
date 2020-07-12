@@ -45,10 +45,10 @@ static const unsigned char config_descriptor[] = {  //Mostly stolen from a USB m
 	// configuration descriptor, USB spec 9.6.3, page 264-266, Table 9-10
 	9, 					// bLength;
 	2,					// bDescriptorType;
-	0x3b, 0x00,			// wTotalLength  	
+	0x3b, 0x00,			// wTotalLength
 
 	//34, 0x00, //for just the one descriptor
-	
+
 	0x02,					// bNumInterfaces (Normally 1)
 	0x01,					// bConfigurationValue
 	0x00,					// iConfiguration
@@ -107,7 +107,7 @@ static const unsigned char config_descriptor[] = {  //Mostly stolen from a USB m
 	0x82, //Endpoint Address
 	0x03, //Attributes
 	0x08,	0x00, //Size (8 bytes)
-	10, //Interval (Was 0x0a)
+	01, //Interval (Was 0x0a)
 };
 
 
@@ -227,11 +227,9 @@ const static struct descriptor_list_struct {
 	{0x2200, 0x0001, keyboard_hid_desc, sizeof(keyboard_hid_desc)},
 	{0x0300, 0x0000, (const unsigned char *)&string0, 4},
 	{0x0301, 0x0409, (const unsigned char *)&string1, sizeof(STR_MANUFACTURER)},
-	{0x0302, 0x0409, (const unsigned char *)&string2, sizeof(STR_PRODUCT)},	
+	{0x0302, 0x0409, (const unsigned char *)&string2, sizeof(STR_PRODUCT)},
 	{0x0303, 0x0409, (const unsigned char *)&string3, sizeof(STR_SERIAL)}
 };
 #define DESCRIPTOR_LIST_ENTRIES ((sizeof(descriptor_list))/(sizeof(struct descriptor_list_struct)) )
 
 #endif
-
-

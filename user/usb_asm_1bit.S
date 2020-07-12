@@ -263,7 +263,7 @@ skip_crc_check:
 			addi a8, a15, -0b011010
 			beqz a8, usb_pid_handle_in
 			addi a8, a15, -0b111000
-			beqz a8, usb_pid_handle_out		
+			beqz a8, usb_pid_handle_out
 			j end_gpio_intr //We don't understand this message
 		data_msg:
 			extui a15, a2, 2, 6
@@ -348,7 +348,7 @@ usb_send_data:            //A2 = pointer to data  //A3 = length of data,, A4  = 
 	movi a8, (1<<DPLUS)
 	or a8, a0, a8
 	movi a9, (1<<DMINUS)
-	or a9, a0, a9	
+	or a9, a0, a9
 
 	_s32i.n a9, a11, GPIO_OFFSET_OUT
 
@@ -366,7 +366,7 @@ continue_send_data:
 	movi a0, 0x100
 	or a12, a12, a0
 	addi a2, a2, 1
-	
+
 	DEBUG_LOW
 looper_data:
 
@@ -403,7 +403,7 @@ looper_data:
 
 do_the_crc_bit:
 	//CRC
-	_srli   a5, a5, 1 
+	_srli   a5, a5, 1
 	_bbci   a0, 0, end_looper_bit
 	xor     a5, a5, a4
 
@@ -420,7 +420,7 @@ end_looper_bit:
 		j skip_high_usr_data
 is_high_usr_data:
 		_s32i.n a8, a11, GPIO_OFFSET_OUT
-skip_high_usr_data:	
+skip_high_usr_data:
 
 	//Check to see if we need to read another byte
 	bnei a12, 1, looper_data
@@ -475,7 +475,7 @@ actually_done:
 			j skip_high_usr_data_bit_stuff
 			is_high_usr_data_bit_stuff:
 				_s32i.n a8, a11, GPIO_OFFSET_OUT
-			skip_high_usr_data_bit_stuff:	
+			skip_high_usr_data_bit_stuff:
 		DELAY_ONE_USB_BIT
 	done_bit_stuff:
 
